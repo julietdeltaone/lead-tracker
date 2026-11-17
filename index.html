@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>North Country Lead Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  /* Layout: one column, 1080px max. Summary tiles and pipeline bar on top, filters in one row, then a list of expandable lead rows. */
+  color-scheme: dark;
+  --ground: #0c0e13;
+  --panel: #141821;
+  --raised: #1b2130;
+  --rule: #283042;
+  --text: #eceff5;
+  --muted: #a3acbd;
+  --accent: #9db8d9;
+  --s-none: #6b7385;
+  --s-contacted: #3987e5;
+  --s-replied: #c98500;
+  --s-call: #9085e9;
+  --s-client: #0ca30c;
+  --s-dnc: #d55181;
+  --display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --body: "Manrope", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 64px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 0 20px; }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(32px, 6vw, 46px); line-height: 1.05; }
+.sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 40px; }
+.btn:hover { background: var(--raised); }
+.btn.primary { background: var(--accent); color: var(--ground); border-color: var(--accent); }
+.btn.primary:hover { background: #b7cce6; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--rule); padding: 14px 16px; }
+.tile .n { font-family: var(--display); font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .l { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 6px; }
+
+.pipe { margin-top: 18px; background: var(--panel); border: 1px solid var(--rule); padding: 16px; }
+.pipe h2 { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.bar { display: flex; gap: 2px; height: 14px; }
+.bar div { min-width: 3px; border-radius: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.legend b { font-variant-numeric: tabular-nums; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 12px; align-items: center; }
+.filters input[type="search"], .filters select { background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 9px 10px; min-height: 40px; }
+.filters input[type="search"] { flex: 1 1 200px; min-width: 0; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); min-height: 40px; }
+.count { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+
+.lead { border: 1px solid var(--rule); background: var(--panel); margin-bottom: 8px; }
+.lead-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; }
+.lead-main { flex: 1 1 220px; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.lead-name { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+.lead-meta { color: var(--muted); font-size: 13px; }
+.chip { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--rule); border-radius: 2px; color: var(--muted); white-space: nowrap; }
+.chip.high { border-color: var(--accent); color: var(--accent); }
+.chip.due { border-color: var(--s-replied); color: var(--text); }
+.status { display: inline-flex; align-items: center; gap: 8px; }
+.status select { background: var(--raised); border: 1px solid var(--rule); border-radius: 3px; padding: 8px 8px; min-height: 40px; }
+.lead-body { border-top: 1px solid var(--rule); padding: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 28px; }
+.lead-body h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.kv { margin: 0; display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.pitch { font-size: 14px; }
+.pitch p { margin: 0 0 8px; }
+details { font-size: 13px; color: var(--muted); }
+details summary { cursor: pointer; padding: 4px 0; }
+details p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.track { display: flex; flex-direction: column; gap: 10px; }
+.track label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.track input[type="date"], .track textarea { background: var(--raised); border: 1px solid var(--rule); border-radius: 3px; padding: 8px; min-height: 40px; width: 100%; }
+.track textarea { min-height: 84px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.empty { border: 1px dashed var(--rule); padding: 28px 16px; text-align: center; color: var(--muted); }
+.note { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.note[hidden], .panel[hidden] { display: none; }
+.panel { background: var(--panel); border: 1px solid var(--rule); padding: 16px; margin: 14px 0; }
+.panel h2 { margin: 0 0 10px; font-size: 16px; }
+.panel .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.panel input, .panel textarea { background: var(--raised); border: 1px solid var(--rule); border-radius: 3px; padding: 9px; width: 100%; min-height: 40px; }
+.panel textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.panel .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.panel label { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Lead Tracker</h1>
+      <div class="sub" id="sub">St. Lawrence County outreach</div>
+    </div>
+    <div class="tools">
+      <button class="btn" id="btnAdd" type="button">Add lead</button>
+      <button class="btn" id="btnImport" type="button">Import</button>
+      <button class="btn primary" id="btnExport" type="button">Export</button>
+      <input type="file" id="fileIn" accept="application/json,.json" hidden>
+    </div>
+  </header>
+
+  <div class="note" id="unsaved" hidden></div>
+
+  <section class="panel" id="addPanel" hidden>
+    <h2>Add a lead</h2>
+    <form id="addForm">
+      <div class="grid">
+        <label>Business <input id="aBusiness" required></label>
+        <label>Niche <input id="aNiche"></label>
+        <label>Town <input id="aTown"></label>
+        <label>Phone <input id="aPhone"></label>
+        <label>Email <input id="aEmail" type="email"></label>
+        <label>Contact name <input id="aContact"></label>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="submit">Save lead</button>
+        <button class="btn" type="button" id="addCancel">Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" id="exportPanel" hidden>
+    <h2>Export</h2>
+    <div class="sub">Save this as leads.json in your repository to make these changes the new starting point on every device.</div>
+    <div class="actions">
+      <button class="btn primary" type="button" id="dlJson">Download leads.json</button>
+      <button class="btn" type="button" id="dlCsv">Download CSV</button>
+      <button class="btn" type="button" id="cpJson">Copy JSON</button>
+      <button class="btn" type="button" id="exportClose">Close</button>
+    </div>
+    <div class="note" id="exportMsg" hidden></div>
+    <label style="margin-top:10px">JSON <textarea id="exportText" readonly></textarea></label>
+  </section>
+
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+
+  <section class="pipe" aria-label="Pipeline">
+    <h2>Pipeline</h2>
+    <div class="bar" id="bar" role="img" aria-label="Leads by status"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="filters">
+    <input type="search" id="q" placeholder="Search business, town, or contact" aria-label="Search">
+    <select id="fStatus" aria-label="Status"></select>
+    <select id="fNiche" aria-label="Niche"></select>
+    <select id="fFit" aria-label="Fit"></select>
+    <label class="check"><input type="checkbox" id="fEmail"> Has email</label>
+    <label class="check"><input type="checkbox" id="fDue"> Follow-up due</label>
+  </div>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+
+</div>
+<script>
+(function () {
+  "use strict";
+  var KEY = "ncLeadTracker.v1";
+  var STATUSES = ["Not contacted", "Contacted", "Replied", "Call booked", "Client", "Do not contact"];
+  var COLORS = { "Not contacted": "var(--s-none)", "Contacted": "var(--s-contacted)", "Replied": "var(--s-replied)", "Call booked": "var(--s-call)", "Client": "var(--s-client)", "Do not contact": "var(--s-dnc)" };
+  var FIT_ORDER = { "High": 0, "Medium": 1, "Low": 2, "Not reviewed": 3, "": 3 };
+  var TRACKED = ["status", "myNotes", "lastContact", "followUp"];
+
+  var base = [];      // leads as loaded from leads.json or an import
+  var local = { edits: {}, added: [] };  // changes made on this device
+  var open = {};      // which rows are expanded
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "class") n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  function $(id) { return document.getElementById(id); }
+  function today() { var d = new Date(); return iso(d); }
+  function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function plusDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return iso(d); }
+
+  function loadLocal() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") { local.edits = p.edits || {}; local.added = Array.isArray(p.added) ? p.added : []; } }
+    } catch (e) { /* storage unavailable: changes last for this visit only */ }
+  }
+  function saveLocal() {
+    try { localStorage.setItem(KEY, JSON.stringify(local)); } catch (e) { /* ignore */ }
+  }
+
+  function merged() {
+    return base.concat(local.added).map(function (l) {
+      var m = Object.assign({}, l), e = local.edits[l.id];
+      if (e) TRACKED.forEach(function (k) { if (k in e) m[k] = e[k]; });
+      if (STATUSES.indexOf(m.status) < 0) m.status = "Not contacted";
+      return m;
+    });
+  }
+  function setField(id, key, value) {
+    if (!local.edits[id]) local.edits[id] = {};
+    local.edits[id][key] = value;
+    saveLocal();
+  }
+  function isDue(l) {
+    return !!l.followUp && l.followUp <= today() && l.status !== "Client" && l.status !== "Do not contact";
+  }
+  function safeUrl(u) {
+    if (!u) return "";
+    var s = String(u).trim();
+    if (/^www\./i.test(s)) s = "https://" + s;
+    return /^https?:\/\//i.test(s) ? s : "";
+  }
+
+  function renderSummary(all) {
+    var by = {}; STATUSES.forEach(function (s) { by[s] = 0; });
+    all.forEach(function (l) { by[l.status]++; });
+    var reached = all.length - by["Not contacted"] - by["Do not contact"];
+    var tiles = [
+      [all.length, "Leads"],
+      [all.filter(function (l) { return l.email; }).length, "With email"],
+      [reached, "Reached"],
+      [by["Replied"] + by["Call booked"] + by["Client"], "Replied"],
+      [by["Call booked"], "Calls booked"],
+      [by["Client"], "Clients"],
+      [all.filter(isDue).length, "Follow-ups due"]
+    ];
+    var t = $("tiles"); t.textContent = "";
+    tiles.forEach(function (x) {
+      t.appendChild(el("div", { class: "tile" }, [el("div", { class: "n", text: String(x[0]) }), el("div", { class: "l", text: x[1] })]));
+    });
+    var bar = $("bar"), lg = $("legend"); bar.textContent = ""; lg.textContent = "";
+    STATUSES.forEach(function (s) {
+      if (by[s] > 0) {
+        var seg = el("div", { title: s + ": " + by[s] });
+        seg.style.flex = by[s] + " 1 0"; seg.style.background = COLORS[s];
+        bar.appendChild(seg);
+      }
+      var dot = el("i", { class: "dot" }); dot.style.background = COLORS[s];
+      lg.appendChild(el("span", null, [dot, document.createTextNode(s + " "), el("b", { text: String(by[s]) })]));
+    });
+    $("sub").textContent = "St. Lawrence County outreach · " + all.length + " leads";
+    var n = Object.keys(local.edits).length + local.added.length, u = $("unsaved");
+    if (n) { u.hidden = false; u.textContent = n + " change" + (n === 1 ? "" : "s") + " saved on this device only. Export to update leads.json."; }
+    else u.hidden = true;
+  }
+
+  function fillSelect(sel, first, values, keep) {
+    sel.textContent = "";
+    sel.appendChild(el("option", { value: "", text: first }));
+    values.forEach(function (v) { sel.appendChild(el("option", { value: v, text: v })); });
+    sel.value = values.indexOf(keep) >= 0 ? keep : "";
+  }
+
+  function matches(l) {
+    var q = $("q").value.trim().toLowerCase();
+    if (q && [l.business, l.town, l.contact, l.niche, l.email].join(" ").toLowerCase().indexOf(q) < 0) return false;
+    if ($("fStatus").value && l.status !== $("fStatus").value) return false;
+    if ($("fNiche").value && l.niche !== $("fNiche").value) return false;
+    if ($("fFit").value && (l.fit || "Not reviewed") !== $("fFit").value) return false;
+    if ($("fEmail").checked && !l.email) return false;
+    if ($("fDue").checked && !isDue(l)) return false;
+    return true;
+  }
+
+  function kv(dl, label, value, href) {
+    if (!value) return;
+    var dd = el("dd");
+    if (href) dd.appendChild(el("a", { href: href, target: "_blank", rel: "noopener noreferrer", text: value }));
+    else dd.textContent = value;
+    dl.appendChild(el("dt", { text: label })); dl.appendChild(dd);
+  }
+
+  function leadRow(l) {
+    var row = el("article", { class: "lead" });
+    var main = el("button", { class: "lead-main", type: "button", "aria-expanded": open[l.id] ? "true" : "false" }, [
+      el("div", { class: "lead-name", text: l.business }),
+      el("div", { class: "lead-meta", text: [l.niche, l.town, l.contact].filter(Boolean).join(" · ") })
+    ]);
+    main.addEventListener("click", function () { open[l.id] = !open[l.id]; render(); });
+    var dot = el("i", { class: "dot" }); dot.style.background = COLORS[l.status];
+    var sel = el("select", { "aria-label": "Status for " + l.business, id: "st-" + l.id });
+    STATUSES.forEach(function (s) { sel.appendChild(el("option", { value: s, text: s })); });
+    sel.value = l.status;
+    sel.addEventListener("change", function () { setField(l.id, "status", sel.value); render(); });
+    var fit = l.fit || "Not reviewed";
+    var head = el("div", { class: "lead-head" }, [
+      main,
+      isDue(l) ? el("span", { class: "chip due", text: "Follow-up due" }) : null,
+      fit !== "Not reviewed" ? el("span", { class: "chip" + (fit === "High" ? " high" : ""), text: fit + " fit" }) : null,
+      el("span", { class: "status" }, [dot, sel])
+    ]);
+    row.appendChild(head);
+    if (!open[l.id]) return row;
+
+    var dl = el("dl", { class: "kv" });
+    kv(dl, "Phone", l.phone, l.phone ? "tel:" + l.phone.replace(/[^0-9+]/g, "") : "");
+    kv(dl, "Email", l.email, l.email ? "mailto:" + l.email : "");
+    kv(dl, "Website", l.website, safeUrl(l.website));
+    kv(dl, "Facebook", l.facebook, safeUrl(l.facebook));
+    kv(dl, "Contact", l.contact);
+    kv(dl, "Address", [l.address, l.town].filter(Boolean).join(", "));
+    kv(dl, "Source", l.source);
+    var c1 = el("div", null, [el("h3", { text: "Contact" }), dl]);
+
+    var pitch = el("div", { class: "pitch" }, [el("h3", { text: "Website and pitch" })]);
+    if (l.platform) pitch.appendChild(el("p", { text: "Platform: " + l.platform }));
+    if (l.siteToday) pitch.appendChild(el("p", { text: l.siteToday }));
+    if (l.pitch) pitch.appendChild(el("p", null, [el("strong", { text: "Pitch: " }), document.createTextNode(l.pitch)]));
+    if (!l.platform && !l.siteToday && !l.pitch) pitch.appendChild(el("p", { text: "Website not reviewed yet." }));
+    if (l.research) pitch.appendChild(el("details", null, [el("summary", { text: "Research notes" }), el("p", { text: l.research })]));
+
+    var notes = el("textarea", { id: "nt-" + l.id, placeholder: "What happened, what they said, what to send next" });
+    notes.value = l.myNotes || "";
+    notes.addEventListener("change", function () { setField(l.id, "myNotes", notes.value); renderSummary(merged()); });
+    var last = el("input", { type: "date", id: "lc-" + l.id }); last.value = l.lastContact || "";
+    last.addEventListener("change", function () { setField(l.id, "lastContact", last.value); render(); });
+    var next = el("input", { type: "date", id: "fu-" + l.id }); next.value = l.followUp || "";
+    next.addEventListener("change", function () { setField(l.id, "followUp", next.value); render(); });
+    var log = el("button", { class: "btn", type: "button", text: "Log contact today" });
+    log.addEventListener("click", function () {
+      setField(l.id, "lastContact", today());
+      setField(l.id, "followUp", plusDays(4));
+      if (l.status === "Not contacted") setField(l.id, "status", "Contacted");
+      render();
+    });
+    var track = el("div", { class: "track" }, [
+      el("h3", { text: "Tracking" }),
+      el("div", { class: "row2" }, [
+        el("label", null, [document.createTextNode("Last contact"), last]),
+        el("label", null, [document.createTextNode("Next follow-up"), next])
+      ]),
+      el("label", null, [document.createTextNode("My notes"), notes]),
+      log
+    ]);
+    row.appendChild(el("div", { class: "lead-body" }, [c1, pitch, track]));
+    return row;
+  }
+
+  function render() {
+    var all = merged();
+    renderSummary(all);
+    fillSelect($("fStatus"), "All statuses", STATUSES, $("fStatus").value);
+    var niches = Array.from(new Set(all.map(function (l) { return l.niche; }).filter(Boolean))).sort();
+    fillSelect($("fNiche"), "All niches", niches, $("fNiche").value);
+    fillSelect($("fFit"), "Any fit", ["High", "Medium", "Low", "Not reviewed"], $("fFit").value);
+    var shown = all.filter(matches).sort(function (a, b) {
+      var d = (isDue(b) ? 1 : 0) - (isDue(a) ? 1 : 0);
+      if (d) return d;
+      d = (FIT_ORDER[a.fit || ""] || 0) - (FIT_ORDER[b.fit || ""] || 0);
+      return d || a.business.localeCompare(b.business);
+    });
+    $("count").textContent = "Showing " + shown.length + " of " + all.length;
+    var list = $("list"); list.textContent = "";
+    if (!all.length) {
+      list.appendChild(el("div", { class: "empty", text: "No leads loaded. Put leads.json next to this page, or use Import to load one." }));
+    } else if (!shown.length) {
+      list.appendChild(el("div", { class: "empty", text: "No leads match these filters." }));
+    } else shown.forEach(function (l) { list.appendChild(leadRow(l)); });
+  }
+
+  function exportJson() { return JSON.stringify(merged(), null, 1); }
+  function exportCsv() {
+    var cols = ["business", "niche", "town", "phone", "email", "status", "lastContact", "followUp", "myNotes", "website", "facebook", "contact", "address", "fit", "pitch"];
+    var esc = function (v) { v = String(v == null ? "" : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+    return [cols.join(",")].concat(merged().map(function (l) { return cols.map(function (c) { return esc(l[c]); }).join(","); })).join("\r\n");
+  }
+  function download(name, text, type) {
+    var msg = $("exportMsg");
+    try {
+      var a = el("a", { href: URL.createObjectURL(new Blob([text], { type: type })), download: name });
+      document.body.appendChild(a); a.click(); a.remove();
+      msg.hidden = false; msg.textContent = "If no file appeared, use Copy JSON or copy from the box.";
+    } catch (e) { msg.hidden = false; msg.textContent = "Download is blocked here. Use Copy JSON or copy from the box."; }
+  }
+
+  function importLeads(text) {
+    var data;
+    try { data = JSON.parse(text); } catch (e) { return "That file is not valid JSON."; }
+    if (!Array.isArray(data) || !data.every(function (d) { return d && typeof d.business === "string" && typeof d.id === "string"; })) return "That file is not a leads.json export from this tracker.";
+    base = data; local = { edits: {}, added: [] }; saveLocal();
+    try { localStorage.setItem(KEY + ".base", JSON.stringify(base)); } catch (e) { /* ignore */ }
+    return "";
+  }
+
+  $("btnAdd").addEventListener("click", function () { $("addPanel").hidden = !$("addPanel").hidden; if (!$("addPanel").hidden) $("aBusiness").focus(); });
+  $("addCancel").addEventListener("click", function () { $("addPanel").hidden = true; });
+  $("addForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var name = $("aBusiness").value.trim(); if (!name) return;
+    var id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36);
+    local.added.push({ id: id, business: name, niche: $("aNiche").value.trim(), town: $("aTown").value.trim(), phone: $("aPhone").value.trim(), email: $("aEmail").value.trim(), contact: $("aContact").value.trim(), status: "Not contacted", website: "", facebook: "", address: "", source: "Added by hand", research: "", platform: "", siteToday: "", pitch: "", fit: "", myNotes: "", lastContact: "", followUp: "" });
+    saveLocal(); $("addForm").reset(); $("addPanel").hidden = true; open[id] = true; render();
+  });
+  $("btnExport").addEventListener("click", function () { $("exportPanel").hidden = false; $("exportText").value = exportJson(); $("exportMsg").hidden = true; });
+  $("exportClose").addEventListener("click", function () { $("exportPanel").hidden = true; });
+  $("dlJson").addEventListener("click", function () { download("leads.json", exportJson(), "application/json"); });
+  $("dlCsv").addEventListener("click", function () { download("leads.csv", exportCsv(), "text/csv"); });
+  $("cpJson").addEventListener("click", function () {
+    var msg = $("exportMsg"); msg.hidden = false;
+    try { navigator.clipboard.writeText(exportJson()).then(function () { msg.textContent = "Copied."; }, function () { msg.textContent = "Copy was blocked. Select the text in the box and copy it."; }); }
+    catch (e) { msg.textContent = "Copy was blocked. Select the text in the box and copy it."; }
+  });
+  $("btnImport").addEventListener("click", function () { $("fileIn").click(); });
+  $("fileIn").addEventListener("change", function () {
+    var f = $("fileIn").files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var err = importLeads(String(r.result)), u = $("unsaved");
+      render();
+      if (err) { u.hidden = false; u.textContent = err; }
+      $("fileIn").value = "";
+    };
+    r.readAsText(f);
+  });
+  ["q", "fStatus", "fNiche", "fFit", "fEmail", "fDue"].forEach(function (id) {
+    $(id).addEventListener(id === "q" ? "input" : "change", render);
+  });
+
+  loadLocal();
+  fetch("leads.json", { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("missing"); return r.json(); }).then(function (data) {
+    if (Array.isArray(data)) base = data;
+    render();
+  }).catch(function () {
+    try { var b = localStorage.getItem(KEY + ".base"); if (b) base = JSON.parse(b) || []; } catch (e) { /* ignore */ }
+    render();
+  });
+})();
+</script>
+</body>
+</html>
